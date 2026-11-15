@@ -21,7 +21,15 @@ local titleScreen = nil
 local overScreen = nil
 local bannerLabel = nil
 
-local function makeLabel(parent, name, text, size, color, font)
+-- makeLabel builds a centred text label. zindex is REQUIRED whenever
+-- the label sits inside a panel with a raised ZIndex: a label keeps
+-- the default ZIndex 1, and a label with a lower ZIndex than its
+-- parent renders BEHIND the parent's background, invisible. So every
+-- label here passes its parent's ZIndex + 1. (That was the blank-sky
+-- bug: the title and HUD labels all sat at ZIndex 1 inside ZIndex 10
+-- and 20 panels, so only the zone label, which had an explicit 6,
+-- ever showed — dimmed through the title overlay.)
+local function makeLabel(parent, name, text, size, color, font, zindex)
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.BackgroundTransparency = 1
@@ -31,6 +39,7 @@ local function makeLabel(parent, name, text, size, color, font)
 	label.Font = font or Enum.Font.GothamBold
 	label.TextXAlignment = Enum.TextXAlignment.Center
 	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.ZIndex = zindex or 1
 	label.Parent = parent
 	return label
 end
@@ -69,21 +78,21 @@ function UI.build(playerGui)
 	corner.CornerRadius = UDim.new(0, 10)
 	corner.Parent = bar
 
-	hud.score = makeLabel(bar, "Score", "SCORE  0", 26, P.Text)
+	hud.score = makeLabel(bar, "Score", "SCORE  0", 26, P.Text, nil, 11)
 	hud.score.AnchorPoint = Vector2.new(0, 0.5)
 	hud.score.Position = UDim2.new(0, 20, 0.5, 0)
 	hud.score.Size = UDim2.new(0.28, 0, 1, 0)
 	hud.score.TextXAlignment = Enum.TextXAlignment.Left
-	hud.level = makeLabel(bar, "Level", "LEVEL 1", 22, P.Player)
+	hud.level = makeLabel(bar, "Level", "LEVEL 1", 22, P.Player, nil, 11)
 	hud.level.AnchorPoint = Vector2.new(0.5, 0.5)
 	hud.level.Position = UDim2.new(0.5, 0, 0.5, 0)
 	hud.level.Size = UDim2.new(0.2, 0, 1, 0)
-	hud.best = makeLabel(bar, "Best", "BEST  0", 22, P.DimText)
+	hud.best = makeLabel(bar, "Best", "BEST  0", 22, P.DimText, nil, 11)
 	hud.best.AnchorPoint = Vector2.new(1, 0.5)
 	hud.best.Position = UDim2.new(0.72, -8, 0.5, 0)
 	hud.best.Size = UDim2.new(0.2, 0, 1, 0)
 	hud.best.TextXAlignment = Enum.TextXAlignment.Right
-	hud.lives = makeLabel(bar, "Lives", "♥♥♥", 24, P.Hazard)
+	hud.lives = makeLabel(bar, "Lives", "♥♥♥", 24, P.Hazard, nil, 11)
 	hud.lives.AnchorPoint = Vector2.new(1, 0.5)
 	hud.lives.Position = UDim2.new(1, -16, 0.5, 0)
 	hud.lives.Size = UDim2.new(0.12, 0, 1, 0)
@@ -105,11 +114,10 @@ function UI.build(playerGui)
 
 	-- Zone progress: the run's objective, pinned to the top of the
 	-- arena. "ZONE 1 · EMBER DRIFT — STARS 3/8" plus a fill bar.
-	hud.zoneLabel = makeLabel(arena, "ZoneLabel", "ZONE 1 · EMBER DRIFT", 17, P.Text)
+	hud.zoneLabel = makeLabel(arena, "ZoneLabel", "ZONE 1 · EMBER DRIFT", 17, P.Text, nil, 6)
 	hud.zoneLabel.AnchorPoint = Vector2.new(0.5, 0)
 	hud.zoneLabel.Position = UDim2.new(0.5, 0, 0, 10)
 	hud.zoneLabel.Size = UDim2.new(1, -24, 0, 24)
-	hud.zoneLabel.ZIndex = 6
 	hud.zoneBarBg = makePanel(arena, "ZoneBarBg", UDim2.new(0, 260, 0, 6), UDim2.new(0.5, -130, 0, 36), P.PanelEdge)
 	hud.zoneBarBg.ZIndex = 6
 	local zoneBarCorner = Instance.new("UICorner")
@@ -160,8 +168,10 @@ function UI.build(playerGui)
 	dashCorner.CornerRadius = UDim.new(1, 0)
 	dashCorner.Parent = hud.dashButton
 
-	-- The player: a glowing cyan orb. The game moves this frame.
-	playerFrame = makePanel(arena, "Player", UDim2.fromOffset(Config.Player.Size, Config.Player.Size), UDim2.fromOffset(0, 0), P.Player)
+	-- The player: a glowing cyan orb. The game moves this frame. It
+	-- starts centred in the arena, so the title screen shows it in the
+	-- middle instead of half-clipped at the corner.
+	playerFrame = makePanel(arena, "Player", UDim2.fromOffset(Config.Player.Size, Config.Player.Size), UDim2.fromOffset(Config.Arena.Width / 2, Config.Arena.Height / 2), P.Player)
 	playerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 	playerFrame.ZIndex = 5
 	local orbCorner = Instance.new("UICorner")
@@ -174,46 +184,43 @@ function UI.build(playerGui)
 	orbStroke.Parent = playerFrame
 
 	-- Combo + dash meters, under the arena.
-	hud.combo = makeLabel(gui, "Combo", "", 20, P.Star)
+	hud.combo = makeLabel(gui, "Combo", "", 20, P.Star, nil, 10)
 	hud.combo.AnchorPoint = Vector2.new(0.5, 0)
 	hud.combo.Position = UDim2.new(0.5, 0, 0.5, 26 + Config.Arena.Height / 2 + 10)
 	hud.combo.Size = UDim2.new(0, 400, 0, 28)
-	hud.combo.ZIndex = 10
-	hud.dash = makeLabel(gui, "Dash", "DASH READY  [SPACE]", 15, P.DimText)
+	hud.dash = makeLabel(gui, "Dash", "DASH READY  [SPACE]", 15, P.DimText, nil, 10)
 	hud.dash.AnchorPoint = Vector2.new(0.5, 0)
 	hud.dash.Position = UDim2.new(0.5, 0, 0.5, 26 + Config.Arena.Height / 2 + 38)
 	hud.dash.Size = UDim2.new(0, 400, 0, 22)
-	hud.dash.ZIndex = 10
 
 	-- Banner: big centre announcements (level up, power-up, warnings).
-	bannerLabel = makeLabel(gui, "Banner", "", 40, P.Text)
+	bannerLabel = makeLabel(gui, "Banner", "", 40, P.Text, nil, 11)
 	bannerLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	bannerLabel.Position = UDim2.fromScale(0.5, 0.42)
 	bannerLabel.Size = UDim2.new(0, 700, 0, 56)
 	bannerLabel.TextTransparency = 1
-	bannerLabel.ZIndex = 11
 
 	-- Title screen: the first thing a player sees.
 	titleScreen = makePanel(gui, "TitleScreen", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), P.Background)
 	titleScreen.BackgroundTransparency = 0.25
 	titleScreen.ZIndex = 20
-	local title = makeLabel(titleScreen, "Title", "NEON RUSH", 72, P.Player)
+	local title = makeLabel(titleScreen, "Title", "NEON RUSH", 72, P.Player, nil, 21)
 	title.AnchorPoint = Vector2.new(0.5, 0.5)
 	title.Position = UDim2.new(0.5, 0, 0.32, 0)
 	title.Size = UDim2.new(0, 700, 0, 90)
-	local subtitle = makeLabel(titleScreen, "Subtitle", "Dash. Dodge. Survive.", 26, P.Text)
+	local subtitle = makeLabel(titleScreen, "Subtitle", "Dash. Dodge. Survive.", 26, P.Text, nil, 21)
 	subtitle.AnchorPoint = Vector2.new(0.5, 0.5)
 	subtitle.Position = UDim2.new(0.5, 0, 0.44, 0)
 	subtitle.Size = UDim2.new(0, 700, 0, 36)
-	local howto = makeLabel(titleScreen, "HowTo", "WASD / ARROWS to move  •  SPACE to dash\nCollect stars to charge the portal — clear 3 zones to win.\nDodge the magenta shards, chain combos — 3 hits and the run is over.\nTouch: drag the stick to move, tap DASH.", 20, P.DimText)
+	local howto = makeLabel(titleScreen, "HowTo", "WASD / ARROWS to move  •  SPACE to dash\nCollect stars to charge the portal — clear 3 zones to win.\nDodge the magenta shards, chain combos — 3 hits and the run is over.\nTouch: drag the stick to move, tap DASH.", 20, P.DimText, nil, 21)
 	howto.AnchorPoint = Vector2.new(0.5, 0.5)
 	howto.Position = UDim2.new(0.5, 0, 0.58, 0)
 	howto.Size = UDim2.new(0, 700, 0, 90)
-	local start = makeLabel(titleScreen, "StartHint", "CLICK OR PRESS ENTER TO START", 24, P.Star)
+	local start = makeLabel(titleScreen, "StartHint", "CLICK OR PRESS ENTER TO START", 24, P.Star, nil, 21)
 	start.AnchorPoint = Vector2.new(0.5, 0.5)
 	start.Position = UDim2.new(0.5, 0, 0.74, 0)
 	start.Size = UDim2.new(0, 700, 0, 40)
-	hud.titleBest = makeLabel(titleScreen, "TitleBest", "", 20, P.DimText)
+	hud.titleBest = makeLabel(titleScreen, "TitleBest", "", 20, P.DimText, nil, 21)
 	hud.titleBest.AnchorPoint = Vector2.new(0.5, 0.5)
 	hud.titleBest.Position = UDim2.new(0.5, 0, 0.84, 0)
 	hud.titleBest.Size = UDim2.new(0, 700, 0, 30)
@@ -223,19 +230,19 @@ function UI.build(playerGui)
 	overScreen.BackgroundTransparency = 0.25
 	overScreen.ZIndex = 20
 	overScreen.Visible = false
-	local over = makeLabel(overScreen, "Over", "GAME OVER", 64, P.Hazard)
+	local over = makeLabel(overScreen, "Over", "GAME OVER", 64, P.Hazard, nil, 21)
 	over.AnchorPoint = Vector2.new(0.5, 0.5)
 	over.Position = UDim2.new(0.5, 0, 0.36, 0)
 	over.Size = UDim2.new(0, 700, 0, 80)
-	hud.finalScore = makeLabel(overScreen, "FinalScore", "SCORE  0", 30, P.Text)
+	hud.finalScore = makeLabel(overScreen, "FinalScore", "SCORE  0", 30, P.Text, nil, 21)
 	hud.finalScore.AnchorPoint = Vector2.new(0.5, 0.5)
 	hud.finalScore.Position = UDim2.new(0.5, 0, 0.5, 0)
 	hud.finalScore.Size = UDim2.new(0, 700, 0, 44)
-	hud.overBest = makeLabel(overScreen, "OverBest", "BEST  0", 22, P.DimText)
+	hud.overBest = makeLabel(overScreen, "OverBest", "BEST  0", 22, P.DimText, nil, 21)
 	hud.overBest.AnchorPoint = Vector2.new(0.5, 0.5)
 	hud.overBest.Position = UDim2.new(0.5, 0, 0.58, 0)
 	hud.overBest.Size = UDim2.new(0, 700, 0, 32)
-	local again = makeLabel(overScreen, "AgainHint", "PRESS R TO PLAY AGAIN", 24, P.Star)
+	local again = makeLabel(overScreen, "AgainHint", "PRESS R TO PLAY AGAIN", 24, P.Star, nil, 21)
 	again.AnchorPoint = Vector2.new(0.5, 0.5)
 	again.Position = UDim2.new(0.5, 0, 0.7, 0)
 	again.Size = UDim2.new(0, 700, 0, 40)

@@ -10,6 +10,8 @@ local Effects = {}
 
 -- burst sprays small squares out of a point and fades them away. Used
 -- for a collected star, a destroyed hazard and a power-up pickup.
+-- Pieces sit at ZIndex 8: above the arena (2) and the entities (4-5),
+-- below the HUD, so they are never hidden behind the playfield.
 function Effects.burst(parent, position, color, count)
 	count = count or 10
 	for _ = 1, count do
@@ -20,6 +22,7 @@ function Effects.burst(parent, position, color, count)
 		piece.Size = UDim2.fromOffset(6, 6)
 		piece.BackgroundColor3 = color
 		piece.BorderSizePixel = 0
+		piece.ZIndex = 8
 		piece.Parent = parent
 		local angle = math.random() * math.pi * 2
 		local dist = 24 + math.random() * 42
@@ -69,7 +72,8 @@ function Effects.flash(overlay, color)
 end
 
 -- popup floats a short text up from a point and fades it. Used for
--- "+10", "+20", "NEAR MISS +2" and power-up names.
+-- "+10", "+20", "NEAR MISS +2" and power-up names. ZIndex 8, same
+-- reason as burst: above the arena and the entities.
 function Effects.popup(parent, position, text, color)
 	local label = Instance.new("TextLabel")
 	label.Name = "Popup"
@@ -82,6 +86,7 @@ function Effects.popup(parent, position, text, color)
 	label.TextSize = 18
 	label.Font = Enum.Font.GothamBold
 	label.TextStrokeTransparency = 0.6
+	label.ZIndex = 8
 	label.Parent = parent
 	local tween = TweenService:Create(label, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Position = UDim2.fromOffset(position.X, position.Y - 44),
