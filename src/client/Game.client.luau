@@ -20,8 +20,17 @@ local Sound = require(script.Parent:WaitForChild("Sound"))
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local submitScore = ReplicatedStorage:WaitForChild(Config.Remotes.SubmitScore)
-local requestBest = ReplicatedStorage:WaitForChild(Config.Remotes.RequestBest)
+-- Build the interface FIRST, before anything that can wait. The title
+-- screen must appear the moment the client joins: if the server's
+-- remotes are slow (or never arrive), the game still shows and plays,
+-- and only the best-score record is skipped.
+UI.build(playerGui)
+
+-- The server's remotes, waited for with a bound. If they do not show
+-- in 10 seconds the game still runs: submitScore and requestBest stay
+-- nil and every use of them is guarded.
+local submitScore = ReplicatedStorage:WaitForChild(Config.Remotes.SubmitScore, 10)
+local requestBest = ReplicatedStorage:WaitForChild(Config.Remotes.RequestBest, 10)
 
 local W = Config.Arena.Width
 local H = Config.Arena.Height
@@ -389,7 +398,9 @@ endGame = function(won)
 	clearEntities()
 	Sound.play("Over")
 	local best = run.best
-	submitScore:FireServer(run.score)
+	if submitScore then
+		submitScore:FireServer(run.score)
+	end
 	UI.showGameOver(run.score, math.max(best, run.score), won)
 end
 
@@ -527,20 +538,23 @@ local function update(dt)
 	UI.setDashReady(now >= run.dashCooldownUntil, 1 - math.clamp((run.dashCooldownUntil - now) / Config.Player.DashCooldown, 0, 1))
 end
 
--- Boot: build the interface, ask the server for the saved best, bind
--- the keys, and step the loop. A click anywhere on the title starts.
--- On a touch device the stick and DASH button appear instead of the
--- keyboard hints.
-UI.build(playerGui)
+-- Boot: ask the server for the saved best, bind the keys, and step
+-- the loop. A click anywhere on the title starts. On a touch device
+-- the stick and DASH button appear instead of the keyboard hints.
+-- (The interface was already built at the top of this script, before
+-- the remote waits, so the title is on screen from the first frame.)
 if Input.isTouch() then
 	UI.showTouchControls()
 	Input.setupJoystick(UI.getStickBase(), UI.getStickKnob())
 	UI.getDashButton().Activated:Connect(triggerDash)
 end
 do
-	local ok, best = pcall(function()
-		return requestBest:InvokeServer()
-	end)
+	local ok, best = false, nil
+	if requestBest then
+		ok, best = pcall(function()
+			return requestBest:InvokeServer()
+		end)
+	end
 	if ok and typeof(best) == "number" then
 		run.best = best
 	end
@@ -551,12 +565,14 @@ do
 	UI.showTitle()
 end
 
-submitScore.OnClientEvent:Connect(function(best)
-	if typeof(best) == "number" and best > run.best then
-		run.best = best
-		UI.setBest(best)
-	end
-end)
+if submitScore then
+	submitScore.OnClientEvent:Connect(function(best)
+		if typeof(best) == "number" and best > run.best then
+			run.best = best
+			UI.setBest(best)
+		end
+	end)
+end
 
 Input.bindDash(triggerDash)
 Input.bindStart(function()
