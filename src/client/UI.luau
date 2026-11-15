@@ -101,6 +101,64 @@ function UI.build(playerGui)
 	local arenaCorner = Instance.new("UICorner")
 	arenaCorner.CornerRadius = UDim.new(0, 12)
 	arenaCorner.Parent = arena
+	hud.arenaStroke = arenaStroke
+
+	-- Zone progress: the run's objective, pinned to the top of the
+	-- arena. "ZONE 1 · EMBER DRIFT — STARS 3/8" plus a fill bar.
+	hud.zoneLabel = makeLabel(arena, "ZoneLabel", "ZONE 1 · EMBER DRIFT", 17, P.Text)
+	hud.zoneLabel.AnchorPoint = Vector2.new(0.5, 0)
+	hud.zoneLabel.Position = UDim2.new(0.5, 0, 0, 10)
+	hud.zoneLabel.Size = UDim2.new(1, -24, 0, 24)
+	hud.zoneLabel.ZIndex = 6
+	hud.zoneBarBg = makePanel(arena, "ZoneBarBg", UDim2.new(0, 260, 0, 6), UDim2.new(0.5, -130, 0, 36), P.PanelEdge)
+	hud.zoneBarBg.ZIndex = 6
+	local zoneBarCorner = Instance.new("UICorner")
+	zoneBarCorner.CornerRadius = UDim.new(1, 0)
+	zoneBarCorner.Parent = hud.zoneBarBg
+	hud.zoneBarFill = makePanel(hud.zoneBarBg, "ZoneBarFill", UDim2.new(0, 0, 1, 0), UDim2.new(0, 0, 0, 0), P.Star)
+	hud.zoneBarFill.ZIndex = 7
+	local zoneFillCorner = Instance.new("UICorner")
+	zoneFillCorner.CornerRadius = UDim.new(1, 0)
+	zoneFillCorner.Parent = hud.zoneBarFill
+
+	-- Touch controls: a virtual stick (bottom-left) and a DASH button
+	-- (bottom-right). Hidden on desktop; shown when the device has a
+	-- touch screen, so the game plays on a phone as well as a keyboard.
+	hud.stickBase = makePanel(gui, "StickBase", UDim2.fromOffset(120, 120), UDim2.new(0, 36, 1, -156), P.Panel)
+	hud.stickBase.BackgroundTransparency = 0.4
+	hud.stickBase.ZIndex = 12
+	hud.stickBase.Visible = false
+	local stickCorner = Instance.new("UICorner")
+	stickCorner.CornerRadius = UDim.new(1, 0)
+	stickCorner.Parent = hud.stickBase
+	local stickStroke = Instance.new("UIStroke")
+	stickStroke.Color = P.Player
+	stickStroke.Thickness = 2
+	stickStroke.Transparency = 0.4
+	stickStroke.Parent = hud.stickBase
+	hud.stickKnob = makePanel(hud.stickBase, "StickKnob", UDim2.fromOffset(52, 52), UDim2.fromScale(0.5, 0.5), P.Player)
+	hud.stickKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+	hud.stickKnob.BackgroundTransparency = 0.25
+	hud.stickKnob.ZIndex = 13
+	local knobCorner = Instance.new("UICorner")
+	knobCorner.CornerRadius = UDim.new(1, 0)
+	knobCorner.Parent = hud.stickKnob
+	hud.dashButton = Instance.new("TextButton")
+	hud.dashButton.Name = "DashButton"
+	hud.dashButton.AnchorPoint = Vector2.new(1, 1)
+	hud.dashButton.Position = UDim2.new(1, -36, 1, -36)
+	hud.dashButton.Size = UDim2.fromOffset(120, 120)
+	hud.dashButton.BackgroundColor3 = P.Player
+	hud.dashButton.BackgroundTransparency = 0.4
+	hud.dashButton.Text = "DASH"
+	hud.dashButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	hud.dashButton.TextSize = 24
+	hud.dashButton.Font = Enum.Font.GothamBold
+	hud.dashButton.ZIndex = 12
+	hud.dashButton.Visible = false
+	local dashCorner = Instance.new("UICorner")
+	dashCorner.CornerRadius = UDim.new(1, 0)
+	dashCorner.Parent = hud.dashButton
 
 	-- The player: a glowing cyan orb. The game moves this frame.
 	playerFrame = makePanel(arena, "Player", UDim2.fromOffset(Config.Player.Size, Config.Player.Size), UDim2.fromOffset(0, 0), P.Player)
@@ -147,7 +205,7 @@ function UI.build(playerGui)
 	subtitle.AnchorPoint = Vector2.new(0.5, 0.5)
 	subtitle.Position = UDim2.new(0.5, 0, 0.44, 0)
 	subtitle.Size = UDim2.new(0, 700, 0, 36)
-	local howto = makeLabel(titleScreen, "HowTo", "WASD / ARROWS to move  •  SPACE to dash\nCollect stars, dodge the magenta shards,\nchain combos — 3 hits and the run is over.", 20, P.DimText)
+	local howto = makeLabel(titleScreen, "HowTo", "WASD / ARROWS to move  •  SPACE to dash\nCollect stars to charge the portal — clear 3 zones to win.\nDodge the magenta shards, chain combos — 3 hits and the run is over.\nTouch: drag the stick to move, tap DASH.", 20, P.DimText)
 	howto.AnchorPoint = Vector2.new(0.5, 0.5)
 	howto.Position = UDim2.new(0.5, 0, 0.58, 0)
 	howto.Size = UDim2.new(0, 700, 0, 90)
@@ -260,15 +318,55 @@ function UI.banner(text, color)
 	tween:Play()
 end
 
+-- setZone shows the current zone and how many of its stars are
+-- collected, and fills the progress bar.
+function UI.setZone(zoneIndex, name, got, need)
+	hud.zoneLabel.Text = "ZONE " .. zoneIndex .. " · " .. name .. "  —  STARS " .. got .. "/" .. need
+	hud.zoneBarFill.Size = UDim2.new(math.clamp(got / need, 0, 1), 0, 1, 0)
+end
+
+-- setZoneAccent recolors the arena's stroke to the zone's accent.
+function UI.setZoneAccent(color)
+	hud.arenaStroke.Color = color
+end
+
+-- showTouchControls reveals the stick and the DASH button (touch
+-- devices only; desktop keeps the keyboard).
+function UI.showTouchControls()
+	hud.stickBase.Visible = true
+	hud.dashButton.Visible = true
+end
+
+function UI.getStickBase()
+	return hud.stickBase
+end
+
+function UI.getStickKnob()
+	return hud.stickKnob
+end
+
+function UI.getDashButton()
+	return hud.dashButton
+end
+
 function UI.showTitle()
 	titleScreen.Visible = true
 	overScreen.Visible = false
 end
 
--- showGameOver fills in the final numbers and shows the screen.
-function UI.showGameOver(score, best)
+-- showGameOver fills in the final numbers and shows the screen. A win
+-- (all three zones cleared) reads differently from a loss.
+function UI.showGameOver(score, best, won)
 	hud.finalScore.Text = "SCORE  " .. score
 	hud.overBest.Text = "BEST  " .. best
+	local overTitle = overScreen:FindFirstChild("Over")
+	if won then
+		overTitle.Text = "ALL ZONES CLEAR!"
+		overTitle.TextColor3 = P.Player
+	else
+		overTitle.Text = "GAME OVER"
+		overTitle.TextColor3 = P.Hazard
+	end
 	overScreen.Visible = true
 	titleScreen.Visible = false
 end

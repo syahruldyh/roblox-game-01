@@ -33,6 +33,8 @@ local run = {
 	best = 0,
 	lives = Config.Start.Lives,
 	level = Config.Start.Level,
+	zone = 1,
+	zoneStars = 0,
 	comboCount = 0,
 	comboMult = 1,
 	pos = Vector2.new(W / 2, H / 2),
@@ -126,7 +128,7 @@ local function spawnHazard()
 	local frame = makeEntity(arena, def.Size, Config.Palette.Hazard, shape)
 	local edge = math.random(4)
 	local pos, vel
-	local speed = def.Speed + (run.level - 1) * Config.Spawn.SpeedPerLevel
+	local speed = (def.Speed + (run.level - 1) * Config.Spawn.SpeedPerLevel) * Config.Zones[run.zone].SpeedMul
 	if edge == 1 then
 		pos = Vector2.new(math.random(0, W), -40)
 		vel = Vector2.new(math.random(-60, 60), speed)
@@ -241,17 +243,53 @@ local function stepCombo()
 	end
 end
 
--- collectStar pays the star (times the combo), feeds the combo, and
--- sometimes drops a power-up.
+-- zoneComplete pays the zone bonus, clears the field, and opens the
+-- next zone — or wins the run when the last zone falls.
+local function zoneComplete()
+	local zoneDef = Config.Zones[run.zone]
+	local bonus = Config.ZoneClearBonus * run.zone
+	addScore(bonus)
+	Effects.popup(UI.getArena(), run.pos, "ZONE CLEAR +" .. bonus, Config.Palette.Power)
+	Sound.play("Level")
+	for i = #hazards, 1, -1 do
+		hazards[i].frame:Destroy()
+		table.remove(hazards, i)
+	end
+	if run.zone >= #Config.Zones then
+		UI.banner("ALL ZONES CLEAR!", Config.Palette.Player)
+		endGame(true)
+		return
+	end
+	run.zone += 1
+	run.zoneStars = 0
+	local nextDef = Config.Zones[run.zone]
+	UI.setZone(run.zone, nextDef.Name, 0, nextDef.Stars)
+	UI.setZoneAccent(nextDef.Accent)
+	UI.banner("ZONE " .. run.zone .. " — " .. nextDef.Name, nextDef.Accent)
+	run.invulnerableUntil = os.clock() + 2
+	for _ = 1, 3 do
+		spawnStar()
+	end
+end
+
+-- collectStar pays the star (times the combo), feeds the combo, counts
+-- it toward the zone's portal, and sometimes drops a power-up.
 local function collectStar(i, star)
 	star.frame:Destroy()
 	table.remove(stars, i)
 	local points = Config.Scoring.Star * run.comboMult
 	addScore(points)
 	stepCombo()
+	run.zoneStars += 1
+	local zoneDef = Config.Zones[run.zone]
+	UI.setZone(run.zone, zoneDef.Name, run.zoneStars, zoneDef.Stars)
 	Effects.burst(UI.getArena(), star.pos, Config.Palette.Star, 8)
 	Effects.popup(UI.getArena(), star.pos, "+" .. points, Config.Palette.Star)
 	Sound.play("Coin")
+	if run.zoneStars >= zoneDef.Stars then
+		zoneComplete()
+		return
+	end
 	if math.random() < Config.Spawn.PowerChance then
 		spawnPowerUp()
 	end
@@ -316,6 +354,8 @@ startGame = function()
 	run.score = 0
 	run.lives = Config.Start.Lives
 	run.level = Config.Start.Level
+	run.zone = 1
+	run.zoneStars = 0
 	run.comboCount = 0
 	run.comboMult = 1
 	run.pos = Vector2.new(W / 2, H / 2)
@@ -333,6 +373,8 @@ startGame = function()
 	UI.setLives(run.lives)
 	UI.setCombo(1)
 	UI.setDashReady(true, 1)
+	UI.setZone(1, Config.Zones[1].Name, 0, Config.Zones[1].Stars)
+	UI.setZoneAccent(Config.Zones[1].Accent)
 	UI.getPlayer().Position = UDim2.fromOffset(run.pos.X, run.pos.Y)
 	for _ = 1, 3 do
 		spawnStar()
@@ -340,14 +382,15 @@ startGame = function()
 end
 
 -- endGame closes the run, sends the score to the server for the
--- record, and shows the game-over screen with the best.
-endGame = function()
+-- record, and shows the game-over screen with the best. won is true
+-- when the run ended by clearing all three zones.
+endGame = function(won)
 	run.phase = "over"
 	clearEntities()
 	Sound.play("Over")
 	local best = run.best
 	submitScore:FireServer(run.score)
-	UI.showGameOver(run.score, math.max(best, run.score))
+	UI.showGameOver(run.score, math.max(best, run.score), won)
 end
 
 -- update is the per-frame step. It moves the player, the hazards, the
@@ -427,7 +470,7 @@ local function update(dt)
 		elseif hz.kind == "chaser" then
 			local toPlayer = (run.pos - hz.pos)
 			if toPlayer.Magnitude > 1 then
-				hz.vel = toPlayer.Unit * (Config.Hazards.chaser.Speed + (run.level - 1) * Config.Spawn.SpeedPerLevel)
+				hz.vel = toPlayer.Unit * (Config.Hazards.chaser.Speed + (run.level - 1) * Config.Spawn.SpeedPerLevel) * Config.Zones[run.zone].SpeedMul
 			end
 		end
 		hz.pos += step
@@ -486,7 +529,14 @@ end
 
 -- Boot: build the interface, ask the server for the saved best, bind
 -- the keys, and step the loop. A click anywhere on the title starts.
+-- On a touch device the stick and DASH button appear instead of the
+-- keyboard hints.
 UI.build(playerGui)
+if Input.isTouch() then
+	UI.showTouchControls()
+	Input.setupJoystick(UI.getStickBase(), UI.getStickKnob())
+	UI.getDashButton().Activated:Connect(triggerDash)
+end
 do
 	local ok, best = pcall(function()
 		return requestBest:InvokeServer()

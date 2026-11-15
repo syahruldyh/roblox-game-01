@@ -73,6 +73,18 @@ Config.PowerUps = {
 	magnet = { Duration = 6, Color = Color3.fromRGB(163, 230, 53), Label = "MAGNET" },
 }
 
+-- Zones. The run is three zones, not one endless arena. Each zone
+-- asks for a number of stars: collect them all and the portal opens
+-- to the next zone, faster and with a new accent. Clearing zone 3
+-- wins the run. The objective is always on screen, so the player
+-- knows exactly what "winning" means.
+Config.Zones = {
+	{ Name = "EMBER DRIFT", Stars = 8, SpeedMul = 1.0, Accent = Color3.fromRGB(34, 211, 238) },
+	{ Name = "FROST VEIL", Stars = 10, SpeedMul = 1.15, Accent = Color3.fromRGB(96, 165, 250) },
+	{ Name = "VOID CORE", Stars = 12, SpeedMul = 1.3, Accent = Color3.fromRGB(244, 114, 182) },
+}
+Config.ZoneClearBonus = 50
+
 -- Sound. Asset ids are empty on purpose: sounds only play when the
 -- experience's owner drops real uploaded asset ids in here. An empty
 -- id is silence, never an error (SoundManager guards every play).
