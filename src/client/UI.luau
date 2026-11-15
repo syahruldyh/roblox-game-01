@@ -1,0 +1,293 @@
+-- UI.luau — one job: build every pixel of chrome and keep it current.
+-- The title screen, the HUD (score, best, level, lives, combo, dash),
+-- the banner announcements and the game-over screen. It never knows
+-- the rules: the game tells it what to show, and it shows it. Roblox's
+-- own menu buttons sit over the top-left corner, so the HUD bar sits
+-- below them (y 48), clear of the corner.
+
+local TweenService = game:GetService("TweenService")
+
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"))
+
+local UI = {}
+local P = Config.Palette
+
+local gui = nil
+local arena = nil
+local playerFrame = nil
+local flashOverlay = nil
+local hud = {}
+local titleScreen = nil
+local overScreen = nil
+local bannerLabel = nil
+
+local function makeLabel(parent, name, text, size, color, font)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextSize = size
+	label.TextColor3 = color
+	label.Font = font or Enum.Font.GothamBold
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.Parent = parent
+	return label
+end
+
+local function makePanel(parent, name, size, position, color)
+	local frame = Instance.new("Frame")
+	frame.Name = name
+	frame.Size = size
+	frame.Position = position
+	frame.BackgroundColor3 = color
+	frame.BorderSizePixel = 0
+	frame.Parent = parent
+	return frame
+end
+
+-- build creates the whole interface under the player's PlayerGui and
+-- keeps the handles for the setters below. Called once, on join.
+function UI.build(playerGui)
+	gui = Instance.new("ScreenGui")
+	gui.Name = "NeonRushGui"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 10
+
+	local background = makePanel(gui, "Background", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), P.Background)
+	background.ZIndex = 1
+
+	-- HUD bar: score, level, best, lives. Below Roblox's menu corner.
+	local bar = makePanel(gui, "HudBar", UDim2.new(1, -32, 0, 52), UDim2.new(0, 16, 0, 48), P.Panel)
+	bar.ZIndex = 10
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = P.PanelEdge
+	stroke.Thickness = 1
+	stroke.Parent = bar
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = bar
+
+	hud.score = makeLabel(bar, "Score", "SCORE  0", 26, P.Text)
+	hud.score.AnchorPoint = Vector2.new(0, 0.5)
+	hud.score.Position = UDim2.new(0, 20, 0.5, 0)
+	hud.score.Size = UDim2.new(0.28, 0, 1, 0)
+	hud.score.TextXAlignment = Enum.TextXAlignment.Left
+	hud.level = makeLabel(bar, "Level", "LEVEL 1", 22, P.Player)
+	hud.level.AnchorPoint = Vector2.new(0.5, 0.5)
+	hud.level.Position = UDim2.new(0.5, 0, 0.5, 0)
+	hud.level.Size = UDim2.new(0.2, 0, 1, 0)
+	hud.best = makeLabel(bar, "Best", "BEST  0", 22, P.DimText)
+	hud.best.AnchorPoint = Vector2.new(1, 0.5)
+	hud.best.Position = UDim2.new(0.72, -8, 0.5, 0)
+	hud.best.Size = UDim2.new(0.2, 0, 1, 0)
+	hud.best.TextXAlignment = Enum.TextXAlignment.Right
+	hud.lives = makeLabel(bar, "Lives", "♥♥♥", 24, P.Hazard)
+	hud.lives.AnchorPoint = Vector2.new(1, 0.5)
+	hud.lives.Position = UDim2.new(1, -16, 0.5, 0)
+	hud.lives.Size = UDim2.new(0.12, 0, 1, 0)
+	hud.lives.TextXAlignment = Enum.TextXAlignment.Right
+
+	-- The arena: the playfield box, centred under the HUD.
+	arena = makePanel(gui, "Arena", UDim2.fromOffset(Config.Arena.Width, Config.Arena.Height), UDim2.new(0.5, 0, 0.5, 26), P.Panel)
+	arena.AnchorPoint = Vector2.new(0.5, 0.5)
+	arena.ZIndex = 2
+	arena.ClipsDescendants = true
+	local arenaStroke = Instance.new("UIStroke")
+	arenaStroke.Color = P.Player
+	arenaStroke.Thickness = 2
+	arenaStroke.Parent = arena
+	local arenaCorner = Instance.new("UICorner")
+	arenaCorner.CornerRadius = UDim.new(0, 12)
+	arenaCorner.Parent = arena
+
+	-- The player: a glowing cyan orb. The game moves this frame.
+	playerFrame = makePanel(arena, "Player", UDim2.fromOffset(Config.Player.Size, Config.Player.Size), UDim2.fromOffset(0, 0), P.Player)
+	playerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	playerFrame.ZIndex = 5
+	local orbCorner = Instance.new("UICorner")
+	orbCorner.CornerRadius = UDim.new(1, 0)
+	orbCorner.Parent = playerFrame
+	local orbStroke = Instance.new("UIStroke")
+	orbStroke.Color = Color3.fromRGB(255, 255, 255)
+	orbStroke.Thickness = 2
+	orbStroke.Transparency = 0.4
+	orbStroke.Parent = playerFrame
+
+	-- Combo + dash meters, under the arena.
+	hud.combo = makeLabel(gui, "Combo", "", 20, P.Star)
+	hud.combo.AnchorPoint = Vector2.new(0.5, 0)
+	hud.combo.Position = UDim2.new(0.5, 0, 0.5, 26 + Config.Arena.Height / 2 + 10)
+	hud.combo.Size = UDim2.new(0, 400, 0, 28)
+	hud.combo.ZIndex = 10
+	hud.dash = makeLabel(gui, "Dash", "DASH READY  [SPACE]", 15, P.DimText)
+	hud.dash.AnchorPoint = Vector2.new(0.5, 0)
+	hud.dash.Position = UDim2.new(0.5, 0, 0.5, 26 + Config.Arena.Height / 2 + 38)
+	hud.dash.Size = UDim2.new(0, 400, 0, 22)
+	hud.dash.ZIndex = 10
+
+	-- Banner: big centre announcements (level up, power-up, warnings).
+	bannerLabel = makeLabel(gui, "Banner", "", 40, P.Text)
+	bannerLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	bannerLabel.Position = UDim2.fromScale(0.5, 0.42)
+	bannerLabel.Size = UDim2.new(0, 700, 0, 56)
+	bannerLabel.TextTransparency = 1
+	bannerLabel.ZIndex = 11
+
+	-- Title screen: the first thing a player sees.
+	titleScreen = makePanel(gui, "TitleScreen", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), P.Background)
+	titleScreen.BackgroundTransparency = 0.25
+	titleScreen.ZIndex = 20
+	local title = makeLabel(titleScreen, "Title", "NEON RUSH", 72, P.Player)
+	title.AnchorPoint = Vector2.new(0.5, 0.5)
+	title.Position = UDim2.new(0.5, 0, 0.32, 0)
+	title.Size = UDim2.new(0, 700, 0, 90)
+	local subtitle = makeLabel(titleScreen, "Subtitle", "Dash. Dodge. Survive.", 26, P.Text)
+	subtitle.AnchorPoint = Vector2.new(0.5, 0.5)
+	subtitle.Position = UDim2.new(0.5, 0, 0.44, 0)
+	subtitle.Size = UDim2.new(0, 700, 0, 36)
+	local howto = makeLabel(titleScreen, "HowTo", "WASD / ARROWS to move  •  SPACE to dash\nCollect stars, dodge the magenta shards,\nchain combos — 3 hits and the run is over.", 20, P.DimText)
+	howto.AnchorPoint = Vector2.new(0.5, 0.5)
+	howto.Position = UDim2.new(0.5, 0, 0.58, 0)
+	howto.Size = UDim2.new(0, 700, 0, 90)
+	local start = makeLabel(titleScreen, "StartHint", "CLICK OR PRESS ENTER TO START", 24, P.Star)
+	start.AnchorPoint = Vector2.new(0.5, 0.5)
+	start.Position = UDim2.new(0.5, 0, 0.74, 0)
+	start.Size = UDim2.new(0, 700, 0, 40)
+	hud.titleBest = makeLabel(titleScreen, "TitleBest", "", 20, P.DimText)
+	hud.titleBest.AnchorPoint = Vector2.new(0.5, 0.5)
+	hud.titleBest.Position = UDim2.new(0.5, 0, 0.84, 0)
+	hud.titleBest.Size = UDim2.new(0, 700, 0, 30)
+
+	-- Game-over screen: the run's epitaph, with the score and the best.
+	overScreen = makePanel(gui, "OverScreen", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), P.Background)
+	overScreen.BackgroundTransparency = 0.25
+	overScreen.ZIndex = 20
+	overScreen.Visible = false
+	local over = makeLabel(overScreen, "Over", "GAME OVER", 64, P.Hazard)
+	over.AnchorPoint = Vector2.new(0.5, 0.5)
+	over.Position = UDim2.new(0.5, 0, 0.36, 0)
+	over.Size = UDim2.new(0, 700, 0, 80)
+	hud.finalScore = makeLabel(overScreen, "FinalScore", "SCORE  0", 30, P.Text)
+	hud.finalScore.AnchorPoint = Vector2.new(0.5, 0.5)
+	hud.finalScore.Position = UDim2.new(0.5, 0, 0.5, 0)
+	hud.finalScore.Size = UDim2.new(0, 700, 0, 44)
+	hud.overBest = makeLabel(overScreen, "OverBest", "BEST  0", 22, P.DimText)
+	hud.overBest.AnchorPoint = Vector2.new(0.5, 0.5)
+	hud.overBest.Position = UDim2.new(0.5, 0, 0.58, 0)
+	hud.overBest.Size = UDim2.new(0, 700, 0, 32)
+	local again = makeLabel(overScreen, "AgainHint", "PRESS R TO PLAY AGAIN", 24, P.Star)
+	again.AnchorPoint = Vector2.new(0.5, 0.5)
+	again.Position = UDim2.new(0.5, 0, 0.7, 0)
+	again.Size = UDim2.new(0, 700, 0, 40)
+
+	-- Flash overlay: full-screen colour wash for hits and level-ups.
+	flashOverlay = makePanel(gui, "Flash", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), P.Danger)
+	flashOverlay.BackgroundTransparency = 1
+	flashOverlay.ZIndex = 30
+
+	gui.Parent = playerGui
+	return gui
+end
+
+function UI.setScore(score)
+	hud.score.Text = "SCORE  " .. score
+end
+
+function UI.setBest(best)
+	hud.best.Text = "BEST  " .. best
+	if hud.titleBest then
+		hud.titleBest.Text = best > 0 and ("BEST  " .. best) or ""
+	end
+end
+
+function UI.setLevel(level)
+	hud.level.Text = "LEVEL " .. level
+end
+
+function UI.setLives(lives)
+	local hearts = ""
+	for _ = 1, lives do
+		hearts ..= "♥"
+	end
+	hud.lives.Text = hearts
+end
+
+-- setCombo shows the multiplier when it is above x1, and hides it at x1.
+function UI.setCombo(mult)
+	if mult > 1 then
+		hud.combo.Text = "COMBO x" .. mult
+	else
+		hud.combo.Text = ""
+	end
+end
+
+-- pulseCombo grows the combo label briefly when the multiplier steps up.
+function UI.pulseCombo()
+	local base = hud.combo.TextSize
+	local up = TweenService:Create(hud.combo, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		TextSize = base + 8,
+	})
+	local down = TweenService:Create(hud.combo, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		TextSize = base,
+	})
+	up:Play()
+	up.Completed:Connect(function()
+		down:Play()
+	end)
+end
+
+-- setDashReady shows READY or the cooldown as a percentage.
+function UI.setDashReady(ready, frac)
+	if ready then
+		hud.dash.Text = "DASH READY  [SPACE]"
+		hud.dash.TextColor3 = P.Player
+	else
+		hud.dash.Text = "DASH  " .. math.floor(frac * 100) .. "%"
+		hud.dash.TextColor3 = P.DimText
+	end
+end
+
+-- banner flashes a big centre message and fades it out.
+function UI.banner(text, color)
+	bannerLabel.Text = text
+	bannerLabel.TextColor3 = color or P.Text
+	bannerLabel.TextTransparency = 0
+	local tween = TweenService:Create(bannerLabel, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		TextTransparency = 1,
+	})
+	tween:Play()
+end
+
+function UI.showTitle()
+	titleScreen.Visible = true
+	overScreen.Visible = false
+end
+
+-- showGameOver fills in the final numbers and shows the screen.
+function UI.showGameOver(score, best)
+	hud.finalScore.Text = "SCORE  " .. score
+	hud.overBest.Text = "BEST  " .. best
+	overScreen.Visible = true
+	titleScreen.Visible = false
+end
+
+function UI.hideScreens()
+	titleScreen.Visible = false
+	overScreen.Visible = false
+end
+
+function UI.getArena()
+	return arena
+end
+
+function UI.getPlayer()
+	return playerFrame
+end
+
+function UI.getFlash()
+	return flashOverlay
+end
+
+return UI
