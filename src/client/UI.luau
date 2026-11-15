@@ -115,7 +115,7 @@ function UI.build(playerGui)
 
 	-- Zone progress: the run's objective, pinned to the top of the
 	-- arena. "ZONE 1 · EMBER DRIFT — STARS 3/8" plus a fill bar.
-	hud.zoneLabel = makeLabel(arena, "ZoneLabel", "SECTOR 1 · CRIMSON GATE", 17, P.Text, nil, 6)
+	hud.zoneLabel = makeLabel(arena, "ZoneLabel", "ZONE 1 · EMBER DRIFT", 17, P.Text, nil, 6)
 	hud.zoneLabel.AnchorPoint = Vector2.new(0.5, 0)
 	hud.zoneLabel.Position = UDim2.new(0.5, 0, 0, 10)
 	hud.zoneLabel.Size = UDim2.new(1, -24, 0, 24)
@@ -201,19 +201,19 @@ function UI.build(playerGui)
 	bannerLabel.Size = UDim2.new(0, 700, 0, 56)
 	bannerLabel.TextTransparency = 1
 
-	-- Title screen: a sector-select board, not a blank title. The
-	-- cover is this screen, so it has to prove the whole game at a
-	-- glance: the prism, five sectors with their hostile and threat,
-	-- the LAUNCH button, and the controls. Every label sits at
-	-- ZIndex 21, above the screen's own ZIndex 20 (see makeLabel).
+	-- Title screen: a zone-select board, not a blank title. The cover
+	-- is this screen, so it shows the whole game at a glance: the
+	-- prism and its beams, the three zones with their hostile, stars
+	-- and threat, the LAUNCH button, and the controls. Every label
+	-- sits at ZIndex 21, above the screen's own ZIndex 20.
 	titleScreen = makePanel(gui, "TitleScreen", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), P.Background)
 	titleScreen.BackgroundTransparency = 0.25
 	titleScreen.ZIndex = 20
-	local title = makeLabel(titleScreen, "Title", "PRISM DRIVE", 64, P.Player, nil, 21)
+	local title = makeLabel(titleScreen, "Title", "NEON RUSH", 72, P.Player, nil, 21)
 	title.AnchorPoint = Vector2.new(0.5, 0.5)
 	title.Position = UDim2.new(0.5, 0, 0.09, 0)
-	title.Size = UDim2.new(0, 800, 0, 80)
-	local subtitle = makeLabel(titleScreen, "Subtitle", "REFRACT THE DARK  //  RECLAIM THE SPECTRUM", 20, P.DimText, nil, 21)
+	title.Size = UDim2.new(0, 800, 0, 88)
+	local subtitle = makeLabel(titleScreen, "Subtitle", "Dash. Dodge. Survive.", 26, P.Text, nil, 21)
 	subtitle.AnchorPoint = Vector2.new(0.5, 0.5)
 	subtitle.Position = UDim2.new(0.5, 0, 0.155, 0)
 	subtitle.Size = UDim2.new(0, 800, 0, 28)
@@ -252,17 +252,17 @@ function UI.build(playerGui)
 		beam.ZIndex = 21
 		beam.Parent = titleScreen
 	end
-	local selectLabel = makeLabel(titleScreen, "SelectLabel", "SELECT SECTOR", 18, P.Text, nil, 21)
+	local selectLabel = makeLabel(titleScreen, "SelectLabel", "SELECT ZONE", 18, P.Text, nil, 21)
 	selectLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	selectLabel.Position = UDim2.new(0.5, 0, 0.31, 0)
 	selectLabel.Size = UDim2.new(0, 400, 0, 26)
-	-- Five sector cards, one per Config.Zones entry. Each card shows
+	-- Three zone cards, one per Config.Zones entry. Each card shows
 	-- its number, name, signature hostile, star count and a 1–5
-	-- threat bar. Sector 1 carries the bright stroke: the run
-	-- always starts there.
-	local cardXs = { 0.0125, 0.2075, 0.4025, 0.5975, 0.7925 }
+	-- threat bar. Zone 1 carries the bright stroke: the run always
+	-- starts there.
+	local cardXs = { 0.13, 0.4075, 0.685 }
 	for i, def in ipairs(Config.Zones) do
-		local card = makePanel(titleScreen, "SectorCard" .. i, UDim2.new(0.185, 0, 0, 132), UDim2.new(cardXs[i], 0, 0.35, 0), P.Panel)
+		local card = makePanel(titleScreen, "ZoneCard" .. i, UDim2.new(0.185, 0, 0, 132), UDim2.new(cardXs[i], 0, 0.35, 0), P.Panel)
 		card.ZIndex = 20
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = def.Accent
@@ -271,11 +271,11 @@ function UI.build(playerGui)
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 8)
 		corner.Parent = card
-		local no = makeLabel(card, "SectorNo", "SECTOR 0" .. i, 12, P.DimText, nil, 21)
+		local no = makeLabel(card, "ZoneNo", "ZONE 0" .. i, 12, P.DimText, nil, 21)
 		no.AnchorPoint = Vector2.new(0.5, 0)
 		no.Position = UDim2.new(0.5, 0, 0, 8)
 		no.Size = UDim2.new(1, 0, 0, 16)
-		local nm = makeLabel(card, "SectorName", def.Name, 17, def.Accent, nil, 21)
+		local nm = makeLabel(card, "ZoneName", def.Name, 17, def.Accent, nil, 21)
 		nm.AnchorPoint = Vector2.new(0.5, 0)
 		nm.Position = UDim2.new(0.5, 0, 0, 26)
 		nm.Size = UDim2.new(1, -8, 0, 24)
@@ -322,7 +322,7 @@ function UI.build(playerGui)
 	local launchCorner = Instance.new("UICorner")
 	launchCorner.CornerRadius = UDim.new(0, 8)
 	launchCorner.Parent = launchButton
-	local controls = makeLabel(titleScreen, "Controls", "WASD / ARROWS MOVE  •  SPACE DASH\nCollect stars, clear 5 sectors, beat the PRISM WARDEN — 3 hits and the run is over.\nTouch: drag the stick to move, tap DASH.", 16, P.DimText, nil, 21)
+	local controls = makeLabel(titleScreen, "Controls", "WASD / ARROWS MOVE  •  SPACE DASH\nCollect stars to charge the portal — clear 3 zones to win. Dodge the magenta shards, chain combos — 3 hits and the run is over.\nTouch: drag the stick to move, tap DASH.", 16, P.DimText, nil, 21)
 	controls.AnchorPoint = Vector2.new(0.5, 0.5)
 	controls.Position = UDim2.new(0.5, 0, 0.73, 0)
 	controls.Size = UDim2.new(0, 800, 0, 66)
@@ -434,7 +434,7 @@ end
 -- setZone shows the current zone and how many of its stars are
 -- collected, and fills the progress bar.
 function UI.setZone(zoneIndex, name, got, need)
-	hud.zoneLabel.Text = "SECTOR " .. zoneIndex .. " · " .. name .. "  —  STARS " .. got .. "/" .. need
+	hud.zoneLabel.Text = "ZONE " .. zoneIndex .. " · " .. name .. "  —  STARS " .. got .. "/" .. need
 	hud.zoneBarFill.Size = UDim2.new(math.clamp(got / need, 0, 1), 0, 1, 0)
 end
 
@@ -474,7 +474,7 @@ function UI.showGameOver(score, best, won)
 	hud.overBest.Text = "BEST  " .. best
 	local overTitle = overScreen:FindFirstChild("Over")
 	if won then
-		overTitle.Text = "ALL SECTORS CLEAR!"
+		overTitle.Text = "ALL ZONES CLEAR!"
 		overTitle.TextColor3 = P.Player
 	else
 		overTitle.Text = "GAME OVER"

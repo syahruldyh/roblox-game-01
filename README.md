@@ -1,15 +1,15 @@
-# PRISM DRIVE — Refract the dark. Reclaim the spectrum.
+# NEON RUSH — Dash. Dodge. Survive.
 
 A neon arcade dodger for Roblox (make.fun roblox-game-01). You are a
 cyan orb in a neon arena. Magenta shards drift in from the edges —
-dodge them, collect the amber stars to charge the portal, clear all 5
-sectors, and beat the PRISM WARDEN. Three hits and the run is over.
+dodge them, collect the amber stars to charge the portal, and clear
+all 3 zones to win. Three hits and the run is over.
 
 ## Controls
 
 - **WASD / arrow keys** — move
 - **Space** — dash (a burst of speed, brief invulnerability, 1.6s cooldown)
-- **LAUNCH button / Enter / click** — start from the sector-select screen
+- **Enter / click** — start from the title screen
 - **R** — play again from the game-over screen
 - **Touch** — drag the on-screen stick to move, tap DASH
 
@@ -17,11 +17,9 @@ sectors, and beat the PRISM WARDEN. Three hits and the run is over.
 
 - A star is 10 points, times the combo multiplier (up to x8). Every 4
   clean collects steps the combo up; taking a hit resets it.
-- **Sectors:** each sector asks for a number of stars (8 / 10 / 12 /
-  14 / 16). Collect them all and the portal opens: +50 × sector bonus,
-  hazards cleared, next sector faster with a new accent. Sector 5
-  holds the **PRISM WARDEN**, a boss that hunts you and never burns
-  out — a hit only makes it retreat to an edge. Clear sector 5 to win.
+- **Zones:** each zone asks for a number of stars (8 / 10 / 12).
+  Collect them all and the portal opens: +50 × zone bonus, hazards
+  cleared, next zone faster with a new accent. Clear zone 3 to win.
 - A hazard that passes within 46 px without hitting you pays a
   **near miss** (+2, feeds the combo). Brave play pays more than hiding.
 - Every 150 points is a level up: hazards spawn faster and move faster.

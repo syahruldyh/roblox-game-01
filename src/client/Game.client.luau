@@ -252,54 +252,20 @@ local function stepCombo()
 	end
 end
 
--- spawnBoss drops the PRISM WARDEN into the arena: a big hunting
--- diamond that never burns out. It homes like a chaser but faster,
--- and a touch never kills it — a hit only costs the player a life
--- (or the shield) and the Warden retreats to an edge. It only
--- exists in sector 5, and clearing the field removes it.
-local function spawnBoss()
-	local arena = UI.getArena()
-	local def = Config.Boss
-	local frame = makeEntity(arena, def.Size, Config.Zones[run.zone].Accent, "diamond")
-	local core = Instance.new("Frame")
-	core.AnchorPoint = Vector2.new(0.5, 0.5)
-	core.Position = UDim2.fromScale(0.5, 0.5)
-	core.Size = UDim2.fromOffset(24, 24)
-	core.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	core.BorderSizePixel = 0
-	core.ZIndex = 5
-	local coreCorner = Instance.new("UICorner")
-	coreCorner.CornerRadius = UDim.new(1, 0)
-	coreCorner.Parent = core
-	core.Parent = frame
-	local pos = Vector2.new(math.random(80, W - 80), 60)
-	frame.Position = UDim2.fromOffset(pos.X, pos.Y)
-	table.insert(hazards, {
-		frame = frame,
-		pos = pos,
-		vel = Vector2.zero,
-		kind = "boss",
-		radius = def.Size / 2,
-		born = os.clock(),
-		lifetime = math.huge,
-	})
-	UI.banner(def.Name .. " AWAKENS", Config.Zones[run.zone].Accent)
-end
-
--- zoneComplete pays the sector bonus, clears the field, and opens the
--- next sector — or wins the run when the last sector falls.
+-- zoneComplete pays the zone bonus, clears the field, and opens the
+-- next zone — or wins the run when the last zone falls.
 local function zoneComplete()
 	local zoneDef = Config.Zones[run.zone]
 	local bonus = Config.ZoneClearBonus * run.zone
 	addScore(bonus)
-	Effects.popup(UI.getArena(), run.pos, "SECTOR CLEAR +" .. bonus, Config.Palette.Power)
+	Effects.popup(UI.getArena(), run.pos, "ZONE CLEAR +" .. bonus, Config.Palette.Power)
 	Sound.play("Level")
 	for i = #hazards, 1, -1 do
 		hazards[i].frame:Destroy()
 		table.remove(hazards, i)
 	end
 	if run.zone >= #Config.Zones then
-		UI.banner("ALL SECTORS CLEAR!", Config.Palette.Player)
+		UI.banner("ALL ZONES CLEAR!", Config.Palette.Player)
 		endGame(true)
 		return
 	end
@@ -308,11 +274,8 @@ local function zoneComplete()
 	local nextDef = Config.Zones[run.zone]
 	UI.setZone(run.zone, nextDef.Name, 0, nextDef.Stars)
 	UI.setZoneAccent(nextDef.Accent)
-	UI.banner("SECTOR " .. run.zone .. " — " .. nextDef.Name, nextDef.Accent)
+	UI.banner("ZONE " .. run.zone .. " — " .. nextDef.Name, nextDef.Accent)
 	run.invulnerableUntil = os.clock() + 2
-	if nextDef.Boss then
-		spawnBoss()
-	end
 	for _ = 1, 3 do
 		spawnStar()
 	end
@@ -343,25 +306,17 @@ end
 
 -- takeHit resolves one hazard touching the player. A dash, the shield
 -- or invulnerability each answer it differently; a real hit costs a
--- life, resets the combo, and ends the run at zero lives. The boss is
--- the exception: it never dies to a touch — a hit (or a shield block)
--- only makes the Warden retreat to an edge, then it comes back.
+-- life, resets the combo, and ends the run at zero lives.
 local function takeHit(hazard)
 	local now = os.clock()
 	if now < run.invulnerableUntil or now < run.dashUntil then
 		return
 	end
-	if hazard.kind == "boss" then
-		hazard.pos = Vector2.new(math.random(60, W - 60), 60)
-		hazard.frame.Position = UDim2.fromOffset(hazard.pos.X, hazard.pos.Y)
-	end
 	if run.shield then
 		run.shield = false
 		Effects.burst(UI.getArena(), hazard.pos, Config.Palette.Power, 12)
 		Effects.popup(UI.getArena(), run.pos, "SHIELD!", Config.Palette.Power)
-		if hazard.kind ~= "boss" then
-			hazard.frame:Destroy()
-		end
+		hazard.frame:Destroy()
 		return
 	end
 	run.lives -= 1
@@ -437,7 +392,7 @@ end
 
 -- endGame closes the run, sends the score to the server for the
 -- record, and shows the game-over screen with the best. won is true
--- when the run ended by clearing all five sectors.
+-- when the run ended by clearing all three zones.
 endGame = function(won)
 	run.phase = "over"
 	clearEntities()
@@ -528,23 +483,14 @@ local function update(dt)
 			if toPlayer.Magnitude > 1 then
 				hz.vel = toPlayer.Unit * (Config.Hazards.chaser.Speed + (run.level - 1) * Config.Spawn.SpeedPerLevel) * Config.Zones[run.zone].SpeedMul
 			end
-		elseif hz.kind == "boss" then
-			local toPlayer = (run.pos - hz.pos)
-			if toPlayer.Magnitude > 1 then
-				hz.vel = toPlayer.Unit * Config.Boss.Speed * Config.Zones[run.zone].SpeedMul
-			end
 		end
 		hz.pos += step
 		hz.frame.Position = UDim2.fromOffset(hz.pos.X, hz.pos.Y)
 		local dist = (hz.pos - run.pos).Magnitude
 		local hitR = hz.radius + r
 		if dist < hitR * 0.9 then
-			-- The boss never dies to a touch: takeHit teleports it
-			-- to an edge instead, and it stays in the list.
-			if hz.kind ~= "boss" then
-				hz.frame:Destroy()
-				table.remove(hazards, i)
-			end
+			hz.frame:Destroy()
+			table.remove(hazards, i)
 			takeHit(hz)
 			if run.phase ~= "playing" then
 				return
@@ -648,18 +594,6 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		startGame()
 	end
 end)
-
--- The LAUNCH button on the sector-select screen. A click on it is
--- consumed by the GUI (processed), so the InputBegan handler above
--- never sees it — this is its own connection.
-local launchButton = UI.getLaunchButton()
-if launchButton then
-	launchButton.MouseButton1Click:Connect(function()
-		if run.phase == "title" then
-			startGame()
-		end
-	end)
-end
 
 RunService.RenderStepped:Connect(function(dt)
 	if run.phase == "playing" then

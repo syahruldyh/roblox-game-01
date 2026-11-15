@@ -1,4 +1,4 @@
--- Config.luau — one job: every number and color PRISM DRIVE tunes by.
+-- Config.luau — one job: every number and color NEON RUSH tunes by.
 -- The server and the client both require this module, so a value changed
 -- here changes the whole game in one place. Nothing here runs; it only
 -- describes the game.
@@ -73,27 +73,19 @@ Config.PowerUps = {
 	magnet = { Duration = 6, Color = Color3.fromRGB(163, 230, 53), Label = "MAGNET" },
 }
 
--- Sectors. The run is five sectors, not one endless arena. Each
--- sector asks for a number of stars: collect them all and the portal
--- opens to the next sector, faster and with a new accent. Sector 5
--- holds the PRISM WARDEN, a boss that hunts the player and never
--- burns out — clearing sector 5 wins the run. The objective is
--- always on screen, so the player knows exactly what "winning"
--- means. Hostile names the sector's signature hazard for the
--- select-screen cards; Threat is its 1–5 bar.
+-- Zones. The run is three zones, not one endless arena. Each zone
+-- asks for a number of stars: collect them all and the portal opens
+-- to the next zone, faster and with a new accent. Clearing zone 3
+-- wins the run. The objective is always on screen, so the player
+-- knows exactly what "winning" means. Hostile names the zone's
+-- signature hazard kind for the select-screen cards (all three kinds
+-- spawn in every zone); Threat is its 1–3 bar.
 Config.Zones = {
-	{ Name = "CRIMSON GATE", Stars = 8, SpeedMul = 1.0, Accent = Color3.fromRGB(239, 68, 68), Hostile = "SHARD", Threat = 1 },
-	{ Name = "AMBER DRIFT", Stars = 10, SpeedMul = 1.15, Accent = Color3.fromRGB(251, 191, 36), Hostile = "DRIFTER", Threat = 2 },
-	{ Name = "EMERALD CORE", Stars = 12, SpeedMul = 1.3, Accent = Color3.fromRGB(52, 211, 153), Hostile = "LATTICE", Threat = 3 },
-	{ Name = "AZURE VAULT", Stars = 14, SpeedMul = 1.45, Accent = Color3.fromRGB(96, 165, 250), Hostile = "LANCER", Threat = 4 },
-	{ Name = "VIOLET NEXUS", Stars = 16, SpeedMul = 1.6, Accent = Color3.fromRGB(192, 132, 252), Hostile = "BOSS: PRISM", Threat = 5, Boss = true },
+	{ Name = "EMBER DRIFT", Stars = 8, SpeedMul = 1.0, Accent = Color3.fromRGB(34, 211, 238), Hostile = "DRIFTER", Threat = 1 },
+	{ Name = "FROST VEIL", Stars = 10, SpeedMul = 1.15, Accent = Color3.fromRGB(96, 165, 250), Hostile = "WEAVER", Threat = 2 },
+	{ Name = "VOID CORE", Stars = 12, SpeedMul = 1.3, Accent = Color3.fromRGB(244, 114, 182), Hostile = "CHASER", Threat = 3 },
 }
 Config.ZoneClearBonus = 50
-
--- The boss. A big hunting diamond that never burns out and never
--- dies to one touch: a hit costs the player a life (or the shield)
--- and the Warden retreats to an edge, then comes back.
-Config.Boss = { Name = "PRISM WARDEN", Size = 64, Speed = 135 }
 
 -- Sound. Asset ids are empty on purpose: sounds only play when the
 -- experience's owner drops real uploaded asset ids in here. An empty
