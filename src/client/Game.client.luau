@@ -595,6 +595,19 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
+-- The LAUNCH button on the zone-select screen. A click on it is
+-- consumed by the GUI (processed), so the InputBegan handler above
+-- never sees it — this is its own connection. Without it the button
+-- is dead: it looks clickable and does nothing.
+local launchButton = UI.getLaunchButton()
+if launchButton then
+	launchButton.MouseButton1Click:Connect(function()
+		if run.phase == "title" then
+			startGame()
+		end
+	end)
+end
+
 RunService.RenderStepped:Connect(function(dt)
 	if run.phase == "playing" then
 		update(dt)
