@@ -20,6 +20,7 @@ local hud = {}
 local titleScreen = nil
 local overScreen = nil
 local bannerLabel = nil
+local launchButton = nil
 
 -- makeLabel builds a centred text label. zindex is REQUIRED whenever
 -- the label sits inside a panel with a raised ZIndex: a label keeps
@@ -114,7 +115,7 @@ function UI.build(playerGui)
 
 	-- Zone progress: the run's objective, pinned to the top of the
 	-- arena. "ZONE 1 · EMBER DRIFT — STARS 3/8" plus a fill bar.
-	hud.zoneLabel = makeLabel(arena, "ZoneLabel", "ZONE 1 · EMBER DRIFT", 17, P.Text, nil, 6)
+	hud.zoneLabel = makeLabel(arena, "ZoneLabel", "SECTOR 1 · CRIMSON GATE", 17, P.Text, nil, 6)
 	hud.zoneLabel.AnchorPoint = Vector2.new(0.5, 0)
 	hud.zoneLabel.Position = UDim2.new(0.5, 0, 0, 10)
 	hud.zoneLabel.Size = UDim2.new(1, -24, 0, 24)
@@ -200,29 +201,134 @@ function UI.build(playerGui)
 	bannerLabel.Size = UDim2.new(0, 700, 0, 56)
 	bannerLabel.TextTransparency = 1
 
-	-- Title screen: the first thing a player sees.
+	-- Title screen: a sector-select board, not a blank title. The
+	-- cover is this screen, so it has to prove the whole game at a
+	-- glance: the prism, five sectors with their hostile and threat,
+	-- the LAUNCH button, and the controls. Every label sits at
+	-- ZIndex 21, above the screen's own ZIndex 20 (see makeLabel).
 	titleScreen = makePanel(gui, "TitleScreen", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), P.Background)
 	titleScreen.BackgroundTransparency = 0.25
 	titleScreen.ZIndex = 20
-	local title = makeLabel(titleScreen, "Title", "NEON RUSH", 72, P.Player, nil, 21)
+	local title = makeLabel(titleScreen, "Title", "PRISM DRIVE", 64, P.Player, nil, 21)
 	title.AnchorPoint = Vector2.new(0.5, 0.5)
-	title.Position = UDim2.new(0.5, 0, 0.32, 0)
-	title.Size = UDim2.new(0, 700, 0, 90)
-	local subtitle = makeLabel(titleScreen, "Subtitle", "Dash. Dodge. Survive.", 26, P.Text, nil, 21)
+	title.Position = UDim2.new(0.5, 0, 0.09, 0)
+	title.Size = UDim2.new(0, 800, 0, 80)
+	local subtitle = makeLabel(titleScreen, "Subtitle", "REFRACT THE DARK  //  RECLAIM THE SPECTRUM", 20, P.DimText, nil, 21)
 	subtitle.AnchorPoint = Vector2.new(0.5, 0.5)
-	subtitle.Position = UDim2.new(0.5, 0, 0.44, 0)
-	subtitle.Size = UDim2.new(0, 700, 0, 36)
-	local howto = makeLabel(titleScreen, "HowTo", "WASD / ARROWS to move  •  SPACE to dash\nCollect stars to charge the portal — clear 3 zones to win.\nDodge the magenta shards, chain combos — 3 hits and the run is over.\nTouch: drag the stick to move, tap DASH.", 20, P.DimText, nil, 21)
-	howto.AnchorPoint = Vector2.new(0.5, 0.5)
-	howto.Position = UDim2.new(0.5, 0, 0.58, 0)
-	howto.Size = UDim2.new(0, 700, 0, 90)
-	local start = makeLabel(titleScreen, "StartHint", "CLICK OR PRESS ENTER TO START", 24, P.Star, nil, 21)
-	start.AnchorPoint = Vector2.new(0.5, 0.5)
-	start.Position = UDim2.new(0.5, 0, 0.74, 0)
-	start.Size = UDim2.new(0, 700, 0, 40)
+	subtitle.Position = UDim2.new(0.5, 0, 0.155, 0)
+	subtitle.Size = UDim2.new(0, 800, 0, 28)
+	-- The prism: a white triangle glyph with one white beam in from
+	-- the left and five coloured beams fanning out to the right.
+	local prism = makeLabel(titleScreen, "Prism", "△", 56, Color3.fromRGB(255, 255, 255), nil, 21)
+	prism.AnchorPoint = Vector2.new(0.5, 0.5)
+	prism.Position = UDim2.new(0.5, 0, 0.225, 0)
+	prism.Size = UDim2.new(0, 80, 0, 64)
+	local beamIn = Instance.new("Frame")
+	beamIn.Name = "BeamIn"
+	beamIn.AnchorPoint = Vector2.new(1, 0.5)
+	beamIn.Position = UDim2.new(0.5, -40, 0.225, 0)
+	beamIn.Size = UDim2.new(0, 240, 0, 4)
+	beamIn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	beamIn.BorderSizePixel = 0
+	beamIn.ZIndex = 21
+	beamIn.Parent = titleScreen
+	local beamColors = {
+		Color3.fromRGB(239, 68, 68),
+		Color3.fromRGB(251, 191, 36),
+		Color3.fromRGB(52, 211, 153),
+		Color3.fromRGB(34, 211, 238),
+		Color3.fromRGB(192, 132, 252),
+	}
+	local beamAngles = { -16, -8, 0, 8, 16 }
+	for i = 1, 5 do
+		local beam = Instance.new("Frame")
+		beam.Name = "Beam" .. i
+		beam.AnchorPoint = Vector2.new(0.5, 0.5)
+		beam.Position = UDim2.new(0.5, 150, 0.225, 0)
+		beam.Size = UDim2.new(0, 300, 0, 4)
+		beam.BackgroundColor3 = beamColors[i]
+		beam.BorderSizePixel = 0
+		beam.Rotation = beamAngles[i]
+		beam.ZIndex = 21
+		beam.Parent = titleScreen
+	end
+	local selectLabel = makeLabel(titleScreen, "SelectLabel", "SELECT SECTOR", 18, P.Text, nil, 21)
+	selectLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	selectLabel.Position = UDim2.new(0.5, 0, 0.31, 0)
+	selectLabel.Size = UDim2.new(0, 400, 0, 26)
+	-- Five sector cards, one per Config.Zones entry. Each card shows
+	-- its number, name, signature hostile, star count and a 1–5
+	-- threat bar. Sector 1 carries the bright stroke: the run
+	-- always starts there.
+	local cardXs = { 0.0125, 0.2075, 0.4025, 0.5975, 0.7925 }
+	for i, def in ipairs(Config.Zones) do
+		local card = makePanel(titleScreen, "SectorCard" .. i, UDim2.new(0.185, 0, 0, 132), UDim2.new(cardXs[i], 0, 0.35, 0), P.Panel)
+		card.ZIndex = 20
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = def.Accent
+		stroke.Thickness = (i == 1) and 3 or 1
+		stroke.Parent = card
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 8)
+		corner.Parent = card
+		local no = makeLabel(card, "SectorNo", "SECTOR 0" .. i, 12, P.DimText, nil, 21)
+		no.AnchorPoint = Vector2.new(0.5, 0)
+		no.Position = UDim2.new(0.5, 0, 0, 8)
+		no.Size = UDim2.new(1, 0, 0, 16)
+		local nm = makeLabel(card, "SectorName", def.Name, 17, def.Accent, nil, 21)
+		nm.AnchorPoint = Vector2.new(0.5, 0)
+		nm.Position = UDim2.new(0.5, 0, 0, 26)
+		nm.Size = UDim2.new(1, -8, 0, 24)
+		local hostile = makeLabel(card, "Hostile", "HOSTILE: " .. def.Hostile, 13, P.DimText, nil, 21)
+		hostile.AnchorPoint = Vector2.new(0.5, 0)
+		hostile.Position = UDim2.new(0.5, 0, 0, 52)
+		hostile.Size = UDim2.new(1, -8, 0, 18)
+		local stars = makeLabel(card, "Stars", def.Stars .. " STARS", 13, P.Star, nil, 21)
+		stars.AnchorPoint = Vector2.new(0.5, 0)
+		stars.Position = UDim2.new(0.5, 0, 0, 72)
+		stars.Size = UDim2.new(1, -8, 0, 18)
+		for b = 1, 5 do
+			local bar = Instance.new("Frame")
+			bar.Name = "Threat" .. b
+			bar.AnchorPoint = Vector2.new(0, 0.5)
+			bar.Position = UDim2.new(0.5, -44 + (b - 1) * 18, 0, 108)
+			bar.Size = UDim2.new(0, 14, 0, 6)
+			bar.BackgroundColor3 = (b <= def.Threat) and def.Accent or P.PanelEdge
+			bar.BorderSizePixel = 0
+			bar.ZIndex = 21
+			bar.Parent = card
+		end
+	end
+	local flavor = makeLabel(titleScreen, "Flavor", "SPLINTERED LIGHT SHARDS DRIFT THROUGH THE GATE", 14, P.DimText, nil, 21)
+	flavor.AnchorPoint = Vector2.new(0.5, 0.5)
+	flavor.Position = UDim2.new(0.5, 0, 0.565, 0)
+	flavor.Size = UDim2.new(0, 800, 0, 22)
+	launchButton = Instance.new("TextButton")
+	launchButton.Name = "Launch"
+	launchButton.AnchorPoint = Vector2.new(0.5, 0.5)
+	launchButton.Position = UDim2.new(0.5, 0, 0.63, 0)
+	launchButton.Size = UDim2.new(0, 260, 0, 52)
+	launchButton.BackgroundColor3 = P.Panel
+	launchButton.Text = "LAUNCH  >>"
+	launchButton.TextColor3 = P.Player
+	launchButton.TextSize = 24
+	launchButton.Font = Enum.Font.GothamBold
+	launchButton.ZIndex = 21
+	launchButton.Parent = titleScreen
+	local launchStroke = Instance.new("UIStroke")
+	launchStroke.Color = P.Player
+	launchStroke.Thickness = 2
+	launchStroke.Parent = launchButton
+	local launchCorner = Instance.new("UICorner")
+	launchCorner.CornerRadius = UDim.new(0, 8)
+	launchCorner.Parent = launchButton
+	local controls = makeLabel(titleScreen, "Controls", "WASD / ARROWS MOVE  •  SPACE DASH\nCollect stars, clear 5 sectors, beat the PRISM WARDEN — 3 hits and the run is over.\nTouch: drag the stick to move, tap DASH.", 16, P.DimText, nil, 21)
+	controls.AnchorPoint = Vector2.new(0.5, 0.5)
+	controls.Position = UDim2.new(0.5, 0, 0.73, 0)
+	controls.Size = UDim2.new(0, 800, 0, 66)
 	hud.titleBest = makeLabel(titleScreen, "TitleBest", "", 20, P.DimText, nil, 21)
 	hud.titleBest.AnchorPoint = Vector2.new(0.5, 0.5)
-	hud.titleBest.Position = UDim2.new(0.5, 0, 0.84, 0)
+	hud.titleBest.Position = UDim2.new(0.5, 0, 0.85, 0)
 	hud.titleBest.Size = UDim2.new(0, 700, 0, 30)
 
 	-- Game-over screen: the run's epitaph, with the score and the best.
@@ -328,7 +434,7 @@ end
 -- setZone shows the current zone and how many of its stars are
 -- collected, and fills the progress bar.
 function UI.setZone(zoneIndex, name, got, need)
-	hud.zoneLabel.Text = "ZONE " .. zoneIndex .. " · " .. name .. "  —  STARS " .. got .. "/" .. need
+	hud.zoneLabel.Text = "SECTOR " .. zoneIndex .. " · " .. name .. "  —  STARS " .. got .. "/" .. need
 	hud.zoneBarFill.Size = UDim2.new(math.clamp(got / need, 0, 1), 0, 1, 0)
 end
 
@@ -368,7 +474,7 @@ function UI.showGameOver(score, best, won)
 	hud.overBest.Text = "BEST  " .. best
 	local overTitle = overScreen:FindFirstChild("Over")
 	if won then
-		overTitle.Text = "ALL ZONES CLEAR!"
+		overTitle.Text = "ALL SECTORS CLEAR!"
 		overTitle.TextColor3 = P.Player
 	else
 		overTitle.Text = "GAME OVER"
@@ -393,6 +499,10 @@ end
 
 function UI.getFlash()
 	return flashOverlay
+end
+
+function UI.getLaunchButton()
+	return launchButton
 end
 
 return UI
