@@ -28,6 +28,16 @@ all 3 zones to win. Three hits and the run is over.
 - 3 lives. Best score is kept on the server (leaderstats + DataStore
   when the service answers, memory when it does not).
 
+## Roblox UI rule learned the hard way
+
+A GuiObject renders in front of another only when its ZIndex is
+higher — a child with the default ZIndex 1 renders BEHIND a parent
+panel whose ZIndex was raised (10, 20), so its text is invisible.
+Every label in this game passes its parent's ZIndex + 1 (HUD 11,
+title/game-over 21, zone 6, popups/particles 8). The title screen
+itself is a 75%-opaque overlay, so anything under it (zone label,
+arena) reads dimmed until the game starts.
+
 ## Hazards
 
 - **Drifter** (square) — straight across, the baseline threat.
